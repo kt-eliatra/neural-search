@@ -31,6 +31,7 @@ import org.opensearch.search.query.QueryPhaseSearcherWrapper;
 import lombok.extern.log4j.Log4j2;
 
 import static org.opensearch.neuralsearch.util.HybridQueryUtil.isHybridQuery;
+import static org.opensearch.neuralsearch.util.HybridQueryUtil.isHybridQueryWrappedBySecurityPluginDlsRules;
 import static org.opensearch.neuralsearch.util.HybridQueryUtil.isHybridQueryWrappedInBooleanQuery;
 
 /**
@@ -56,7 +57,7 @@ public class HybridQueryPhaseSearcher extends QueryPhaseSearcherWrapper {
         final boolean hasFilterCollector,
         final boolean hasTimeout
     ) throws IOException {
-        if (!isHybridQuery(query, searchContext)) {
+        if (!isHybridQuery(query, searchContext) && !isHybridQueryWrappedBySecurityPluginDlsRules(query)) {
             validateQuery(searchContext, query);
             return super.searchWith(searchContext, searcher, query, collectors, hasFilterCollector, hasTimeout);
         } else {
@@ -77,6 +78,9 @@ public class HybridQueryPhaseSearcher extends QueryPhaseSearcherWrapper {
 
     @VisibleForTesting
     protected Query extractHybridQuery(final SearchContext searchContext, final Query query) {
+        if (isHybridQueryWrappedBySecurityPluginDlsRules(query)) {
+            return HybridQuery.fromQueryWrappedBySecurityPluginDlsRules(query);
+        }
         if (isHybridQueryWrappedInBooleanQuery(searchContext, query)) {
             List<BooleanClause> booleanClauses = ((BooleanQuery) query).clauses();
             if (!(booleanClauses.get(0).query() instanceof HybridQuery)) {

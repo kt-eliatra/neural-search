@@ -60,6 +60,7 @@ import static org.opensearch.neuralsearch.search.util.HybridSearchResultFormatUt
 import static org.opensearch.neuralsearch.search.util.HybridSearchResultFormatUtil.createFieldDocStartStopElementForHybridSearchResults;
 import static org.opensearch.neuralsearch.search.util.HybridSearchResultFormatUtil.createFieldDocDelimiterElementForHybridSearchResults;
 import static org.opensearch.neuralsearch.search.util.HybridSearchResultFormatUtil.createSortFieldsForDelimiterResults;
+import static org.opensearch.neuralsearch.util.HybridQueryUtil.isHybridQueryWrappedBySecurityPluginDlsRules;
 import static org.opensearch.neuralsearch.util.HybridQueryUtil.isHybridQueryWrappedInBooleanQuery;
 
 /**
@@ -607,13 +608,15 @@ public abstract class HybridCollectorManager implements CollectorManager<Collect
     }
 
     /**
-     * Unwraps a HybridQuery from either a direct query or a nested BooleanQuery
+     * Unwraps a HybridQuery from a direct query, a nested BooleanQuery, or a direct query extended with DLS rules by the security plugin.
      */
     private static HybridQuery unwrapHybridQuery(final SearchContext searchContext) {
         HybridQuery hybridQuery;
         Query query = searchContext.query();
-        // In case of nested fields and alias filter, hybrid query is wrapped under bool query and lies in the first clause.
-        if (isHybridQueryWrappedInBooleanQuery(searchContext, searchContext.query())) {
+        if (isHybridQueryWrappedBySecurityPluginDlsRules(query)) {
+            return HybridQuery.fromQueryWrappedBySecurityPluginDlsRules(query);
+        } else if (isHybridQueryWrappedInBooleanQuery(searchContext, searchContext.query())) {
+            // In case of nested fields and alias filter, hybrid query is wrapped under bool query and lies in the first clause.
             BooleanQuery booleanQuery = (BooleanQuery) query;
             hybridQuery = (HybridQuery) booleanQuery.clauses().get(0).query();
         } else {

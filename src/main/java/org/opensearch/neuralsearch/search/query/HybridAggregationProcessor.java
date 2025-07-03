@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.opensearch.neuralsearch.util.HybridQueryUtil.isHybridQuery;
+import static org.opensearch.neuralsearch.util.HybridQueryUtil.isHybridQueryWrappedBySecurityPluginDlsRules;
 
 /**
  * Defines logic for pre- and post-phases of document scores collection. Responsible for registering custom
@@ -31,7 +32,7 @@ public class HybridAggregationProcessor implements AggregationProcessor {
     public void preProcess(SearchContext context) {
         delegateAggsProcessor.preProcess(context);
 
-        if (isHybridQuery(context.query(), context)) {
+        if (isHybridQuery(context.query(), context) || isHybridQueryWrappedBySecurityPluginDlsRules(context.query())) {
             // adding collector manager for hybrid query
             CollectorManager collectorManager;
             try {
@@ -45,7 +46,7 @@ public class HybridAggregationProcessor implements AggregationProcessor {
 
     @Override
     public void postProcess(SearchContext context) {
-        if (isHybridQuery(context.query(), context)) {
+        if (isHybridQuery(context.query(), context) || isHybridQueryWrappedBySecurityPluginDlsRules(context.query())) {
             // for case when concurrent search is not enabled (default as of 2.12 release) reduce for collector
             // managers is not called
             // (https://github.com/opensearch-project/OpenSearch/blob/2.12/server/src/main/java/org/opensearch/search/query/QueryPhase.java#L333-L373)

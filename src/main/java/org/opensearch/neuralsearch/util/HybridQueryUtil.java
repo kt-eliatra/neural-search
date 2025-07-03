@@ -6,12 +6,15 @@ package org.opensearch.neuralsearch.util;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.index.search.NestedHelper;
 import org.opensearch.neuralsearch.query.HybridQuery;
 import org.opensearch.search.internal.SearchContext;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -27,6 +30,26 @@ public class HybridQueryUtil {
         if (query instanceof HybridQuery
             || (Objects.nonNull(searchContext.parsedQuery()) && searchContext.parsedQuery().query() instanceof HybridQuery)) {
             return true;
+        }
+        return false;
+    }
+
+    /**
+     * This method validates whether the query object is an instance of hybrid query wrapped by the security plugin's
+     * DLS implementation. The security plugin returns a boolean query where the last clause is the user-submitted query,
+     * and the remaining clauses are of type ConstantScoreQuery.
+     */
+    public static boolean isHybridQueryWrappedBySecurityPluginDlsRules(final Query query) {
+        if (query instanceof BooleanQuery booleanQuery) {
+            List<BooleanClause> clauses = booleanQuery.clauses();
+            if (clauses.isEmpty()) {
+                return false;
+            }
+            if (!(clauses.getLast().query() instanceof HybridQuery)) {
+                return false;
+            }
+
+            return clauses.subList(0, clauses.size() - 1).stream().allMatch(clause -> clause.query() instanceof ConstantScoreQuery);
         }
         return false;
     }

@@ -91,6 +91,24 @@ public final class HybridQuery extends Query implements Iterable<Query> {
     }
 
     /**
+     * Create new instance of hybrid query object based on query wrapped by the security plugin's DLS rules
+     */
+    public static HybridQuery fromQueryWrappedBySecurityPluginDlsRules(Query query) {
+        BooleanQuery booleanQuery = (BooleanQuery) query;
+        List<BooleanClause> booleanClauses = booleanQuery.clauses();
+        HybridQuery hybridQuery = (HybridQuery) booleanClauses.getLast().query();
+        List<BooleanClause> dlsRules = booleanClauses.subList(0, booleanClauses.size() - 1);
+        List<Query> subqueriesWithDls = hybridQuery.getSubQueries().stream().map(subquery -> {
+            BooleanQuery.Builder booleanBuilder = new BooleanQuery.Builder();
+            booleanBuilder.setMinimumNumberShouldMatch(booleanQuery.getMinimumNumberShouldMatch());
+            dlsRules.forEach(booleanBuilder::add);
+            booleanBuilder.add(subquery, BooleanClause.Occur.MUST);
+            return booleanBuilder.build();
+        }).collect(Collectors.toUnmodifiableList());
+        return new HybridQuery(subqueriesWithDls, hybridQuery.getQueryContext());
+    }
+
+    /**
      * Returns an iterator over sub-queries that are parts of this hybrid query
      * @return iterator
      */
